@@ -36,21 +36,42 @@ class LaneTestDataset(torch.utils.data.Dataset):
 
 
 class LaneClsDataset(torch.utils.data.Dataset):
-    def __init__(self, path, list_path, img_transform = None,target_transform = None,simu_transform = None, griding_num=50, load_name = False,
-                row_anchor = None,use_aux=False,segment_transform=None, num_lanes = 4):
+    def __init__(self, paths, list_paths, img_transform = None, target_transform = None, simu_transform = None, 
+                 griding_num=50, load_name = False, row_anchor = None, use_aux=False, 
+                 segment_transform=None, num_lanes = 4):
         super(LaneClsDataset, self).__init__()
         self.img_transform = img_transform
         self.target_transform = target_transform
         self.segment_transform = segment_transform
         self.simu_transform = simu_transform
-        self.path = path
+        
+        # 支持单个路径或多个路径
+        self.paths = [paths] if isinstance(paths, str) else paths
+        self.list_paths = [list_paths] if isinstance(list_paths, str) else list_paths
+        assert len(self.paths) == len(self.list_paths), "数据根目录和标注文件列表数量必须相同"
+        
         self.griding_num = griding_num
         self.load_name = load_name
         self.use_aux = use_aux
         self.num_lanes = num_lanes
 
-        with open(list_path, 'r') as f:
-            self.list = f.readlines()
+        # 读取所有train_gt.txt并添加对应的数据根目录前缀
+        self.list = []
+        for path, list_path in zip(self.paths, self.list_paths):
+            with open(list_path, 'r') as f:
+                lines = f.readlines()
+            # 为每行添加数据根目录前缀
+            processed_lines = []
+            for line in lines:
+                line = line.strip().split()
+                img_path, label_path = line[0], line[1]
+                # 移除开头的'/'如果存在
+                img_path = img_path[1:] if img_path.startswith('/') else img_path
+                label_path = label_path[1:] if label_path.startswith('/') else label_path
+                # 添加完整路径
+                processed_line = f"{os.path.join(path, img_path)} {os.path.join(path, label_path)}\n"
+                processed_lines.append(processed_line)
+            self.list.extend(processed_lines)
 
         self.row_anchor = row_anchor
         self.row_anchor.sort()
@@ -58,24 +79,17 @@ class LaneClsDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         l = self.list[index]
         l_info = l.split()
-        img_name, label_name = l_info[0], l_info[1]
-        if img_name[0] == '/':
-            img_name = img_name[1:]
-            label_name = label_name[1:]
+        img_path, label_path = l_info[0], l_info[1]
 
-        label_path = os.path.join(self.path, label_name)
-        label = loader_func(label_path)
-
-        img_path = os.path.join(self.path, img_name)
+        # 由于路径已经是完整路径,直接使用
         img = loader_func(img_path)
-    
+        label = loader_func(label_path)
 
         if self.simu_transform is not None:
             img, label = self.simu_transform(img, label)
+        
         lane_pts = self._get_index(label)
         # get the coordinates of lanes at row anchors
-
-
 
         w, h = img.size
         cls_label = self._grid_pts(lane_pts, self.griding_num, w)
@@ -90,7 +104,7 @@ class LaneClsDataset(torch.utils.data.Dataset):
         if self.use_aux:
             return img, cls_label, seg_label
         if self.load_name:
-            return img, cls_label, img_name
+            return img, cls_label, img_path
         return img, cls_label
 
     def __len__(self):

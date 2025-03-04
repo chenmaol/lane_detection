@@ -9,7 +9,8 @@ import time
 import win32api
 import win32con
 import ctypes
-
+import queue
+import threading
 
 class Action:
     """
@@ -31,13 +32,13 @@ class Action:
         self.down_key(value)
         time.sleep(internal)
         self.up_key(value)
-        time.sleep(0.01)
+        time.sleep(0.0001)
 
     def left_click(self, internal=0.2):
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         time.sleep(internal)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
-        time.sleep(0.01)
+        time.sleep(0.0001)
 
     def move_mouse(self, pos, interval=0.1, repeat=5):
         for i in range(repeat):
@@ -47,6 +48,54 @@ class Action:
     def reset(self):
         for key in self.map.keys():
             self.up_key(key)
+
+class ActionThread(Action):
+    def __init__(self):
+        super().__init__()
+        self.task_queue = queue.Queue()
+        self.current_task = None
+        self.worker_thread = threading.Thread(target=self._worker, daemon=True)
+        self.should_stop_current = False  # 添加终止标志
+        self.worker_thread.start()
+        self._lock = threading.Lock()
+
+    def _worker(self):
+        while True:
+            try:
+                with self._lock:
+                    # 获取最新的任务
+                    while not self.task_queue.empty():
+                        self.current_task = self.task_queue.get()
+                        self.should_stop_current = False  # 重置终止标志
+
+                    if self.current_task:
+                        key, seconds = self.current_task
+                        # 修改press_key的执行方式，使其可以被中断
+                        self.down_key(key)
+                        start_time = time.time()
+                        while time.time() - start_time < seconds:
+                            if self.should_stop_current:
+                                break
+                            time.sleep(0.001)
+                        self.up_key(key)
+                        self.current_task = None
+
+            except Exception as e:
+                print(f"错误: {e}")
+            time.sleep(0.001)
+
+    def put_action_in_thread(self, key, seconds):
+        with self._lock:
+            # 设置终止标志来中断当前动作
+            self.should_stop_current = True
+            # 清空现有队列
+            while not self.task_queue.empty():
+                self.task_queue.get()
+            # 添加新任务
+            self.task_queue.put((key, seconds))
+
+    def is_acting(self):
+        return self.current_task is not None
 
 
 class Recorder:

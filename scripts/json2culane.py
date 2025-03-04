@@ -62,10 +62,10 @@ def json2gt_txt(path_json, path_img, path_labelimg, train_gt_txt):  # 可修改�
             ftxt.writelines(labelstr + "\n")
 
 
-def main():
+def main(map):
     # json_file = args.json_file
-    data_root = "../wrcg_data/germany/"
-    json_file = "../wrcg_data/germany/images/"
+    data_root = f"../wrcg_data/{map}/"
+    json_file = f"../wrcg_data/{map}/images/"
     dir_img = './images_dir/'
     dir_labelimg = './labels_dir/'
     train_gt_txt = data_root + 'list/train_gt.txt'
@@ -117,8 +117,29 @@ def main():
                     ftxt.writelines(path_img + " " + path_labelimg + " ")
 
                 json2gt_txt(path_json, None, None, train_gt_txt)
+            else:
+                # 生成空的txt文件
+                save_file_name = osp.basename(path_json).split('.')[0]
+                path_txt = images_dir + "/" + list_path[i].replace('.json', '.lines.txt')
+                with open(path_txt, 'w') as f:
+                    pass
+
+                # 生成全黑的label图像
+                black_label = np.zeros((720, 1280), dtype=np.uint8)  # 假设图像大小为720x1280
+                PIL.Image.fromarray(black_label).save(osp.join(labels_dir, '{}.png'.format(save_file_name)))
+                
+                # 生成train_gt_txt
+                path_img = dir_img + list_path[i].replace('.json', '.jpg')
+                path_labelimg = dir_labelimg + list_path[i].replace('.json', '.png')
+                
+                with open(train_gt_txt, 'a+') as ftxt:
+                    ftxt.writelines(path_img + " " + path_labelimg + " ")
+                    ftxt.writelines("0 0 0 0\n")  # 写入全0标签
 
 
 if __name__ == '__main__':
     # base64path = argv[1]
-    main()
+    maps = ['portugal', 'sanremo', 'sardinia', 'turkey', 'wales']
+    for map in maps:
+        print(map)
+        main(map)

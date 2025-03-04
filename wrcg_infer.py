@@ -164,18 +164,20 @@ if __name__ == "__main__":
     buffer_frame_num = 1
     speed_frame_cnt = 0
     speed_frame_thres = 10
-    steering_thres = [50, 300]
+    steering_thres = [50, 240]
     try:
         while True:
+            t0 = time.time()
             image = recorder.get_frame()
+            # image = cv2.resize(image, (1280, 800))
             # writer_ori.write(image)
-            
+            t1 = time.time()
             vis, out_j, col_sample_w = process_image(image)
-
+            t2 = time.time()
             center_lane = []
             left_lane = []
             right_lane = []
-            for i in range(len(out_j)):
+            for i in range(len(out_j)): # [18, 2]
                 if out_j[i, 0] > 0:
                     ppp = (int(out_j[i, 0] * col_sample_w * img_w / 800) - 1,
                            int(img_h * (row_anchor[cls_num_per_lane - 1 - i] / 288)) - 1)
@@ -192,9 +194,10 @@ if __name__ == "__main__":
                            int(img_h * (row_anchor[cls_num_per_lane - 1 - i] / 288)) - 1)
                     cv2.circle(vis, ppp, 5, (0, 255, 0), -1)
                     center_lane.append(ppp)
-
+            t3 = time.time()
             steering = decision(left_lane, right_lane, center_lane)
-
+            t4 = time.time()
+            print(t1 - t0, t2 - t1, t3 - t2, t4 - t3)
             speed = speedRecognizer.get_speed(image)
             # print(steering, speed)
 

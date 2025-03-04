@@ -88,10 +88,6 @@ def train(net, data_loader, loss_dict, optimizer, scheduler,logger, epoch, metri
         t_data_0 = time.time()
         
 
-
-
-
-
 if __name__ == "__main__":
     torch.backends.cudnn.benchmark = True
 
@@ -136,8 +132,6 @@ if __name__ == "__main__":
         resume_epoch = int(os.path.split(cfg.resume)[1][2:5]) + 1
     else:
         resume_epoch = 0
-
-
 
     scheduler = get_scheduler(optimizer, cfg, len(train_loader))
     dist_print(len(train_loader))

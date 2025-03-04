@@ -1,16 +1,16 @@
-video_path = 'wrcg_data/germany/videos/0.mp4'
+video_path = 'wrcg_data/turkey/videos/0.mp4'
 
 import cv2
 import os
 
 # 创建保存图像的目录
-save_dir = 'wrcg_data/germany/images/'
+save_dir = 'wrcg_data/turkey/images/'
 os.makedirs(save_dir, exist_ok=True)
 
 # 读取视频
 cap = cv2.VideoCapture(video_path)
 frame_count = 0
-n = 5
+n = 3
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
